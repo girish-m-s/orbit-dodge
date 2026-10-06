@@ -14,8 +14,11 @@
   const hud = document.getElementById("hud");
   const scoreEl = document.getElementById("score");
   const bestEl = document.getElementById("best");
+  const comboEl = document.getElementById("combo");
+  const comboMulEl = document.getElementById("combo-mul");
   const finalScoreEl = document.getElementById("final-score");
   const finalBestEl = document.getElementById("final-best");
+  const finalNearEl = document.getElementById("final-nears");
 
   const HS_KEY = "orbit-dodge-highscore";
 
@@ -24,6 +27,8 @@
   const MAX_ORBIT = 250;
   const BASE_ORBIT = 130;
   const SHIP_R = 9;
+  const NEAR_PAD = 22;
+  const COMBO_WINDOW = 2200;
 
   let state = "start"; // start | playing | over
   let keys = Object.create(null);
@@ -31,6 +36,7 @@
   let asteroids = [];
   let orbs = [];
   let particles = [];
+  let floaters = [];
   let ship = null;
   let score = 0;
   let highScore = Number(localStorage.getItem(HS_KEY) || 0);
@@ -40,6 +46,11 @@
   let spawnInterval = 1400;
   let animId = 0;
   let lastTs = 0;
+  let combo = 0;
+  let comboTimer = 0;
+  let nearMisses = 0;
+  let shake = 0;
+  let scorePulse = 0;
 
   bestEl.textContent = String(highScore);
 
@@ -76,6 +87,7 @@
       boost: 0,
       pull: 0,
       trail: [],
+      glow: 0,
     };
   }
 
@@ -114,6 +126,8 @@
       rotSp: rand(-2.5, 2.5),
       sides: 5 + Math.floor(Math.random() * 4),
       jagged: Array.from({ length: 8 }, () => rand(0.75, 1.15)),
+      closest: Infinity,
+      nearAwarded: false,
     });
   }
 
@@ -147,12 +161,62 @@
     }
   }
 
+  function addFloater(x, y, text, color) {
+    floaters.push({
+      x,
+      y,
+      text,
+      color,
+      life: 1.1,
+      max: 1.1,
+      vy: -42,
+    });
+  }
+
+  function bumpCombo() {
+    combo += 1;
+    comboTimer = COMBO_WINDOW;
+    updateComboHud();
+  }
+
+  function resetCombo() {
+    combo = 0;
+    comboTimer = 0;
+    updateComboHud();
+  }
+
+  function updateComboHud() {
+    if (combo >= 2) {
+      comboEl.classList.remove("hidden");
+      comboMulEl.textContent = String(combo);
+    } else {
+      comboEl.classList.add("hidden");
+    }
+  }
+
+  function awardPoints(base, x, y, label, color) {
+    bumpCombo();
+    const mul = Math.max(1, combo);
+    const gained = base * mul;
+    score += gained;
+    startTime -= gained * 100; // keep survival clock in sync with displayed score
+    scorePulse = 0.35;
+    const text = mul > 1 ? `${label} x${mul}` : label;
+    addFloater(x, y, text, color);
+    return gained;
+  }
+
   function startGame() {
     asteroids = [];
     orbs = [];
     particles = [];
+    floaters = [];
     score = 0;
+    nearMisses = 0;
+    shake = 0;
+    scorePulse = 0;
     spawnInterval = 1400;
+    resetCombo();
     resetShip();
     startTime = performance.now();
     lastSpawn = startTime;
@@ -175,6 +239,8 @@
     const sy = CY + Math.sin(ship.angle) * ship.radius;
     burst(sx, sy, "#ff4d9a", 28);
     burst(sx, sy, "#4de8ff", 12);
+    shake = 0.55;
+    resetCombo();
 
     if (score > highScore) {
       highScore = score;
@@ -183,6 +249,7 @@
 
     finalScoreEl.textContent = String(score);
     finalBestEl.textContent = String(highScore);
+    finalNearEl.textContent = String(nearMisses);
     bestEl.textContent = String(highScore);
 
     overlay.classList.remove("hidden");
@@ -191,8 +258,11 @@
   }
 
   function update(dt, now) {
+    if (shake > 0) shake = Math.max(0, shake - dt);
+
     if (state !== "playing") {
       updateParticles(dt);
+      updateFloaters(dt);
       return;
     }
 
@@ -201,6 +271,15 @@
 
     // Difficulty ramp
     spawnInterval = Math.max(480, 1400 - score * 1.2);
+
+    // Combo decay
+    if (combo > 0) {
+      comboTimer -= dt * 1000;
+      if (comboTimer <= 0) resetCombo();
+    }
+
+    if (scorePulse > 0) scorePulse = Math.max(0, scorePulse - dt);
+    if (ship.glow > 0) ship.glow = Math.max(0, ship.glow - dt);
 
     // Controls
     if (keys["ArrowLeft"] || keys["a"] || keys["A"]) ship.dir = -1;
@@ -263,6 +342,28 @@
       a.vx += (dx / d) * 18 * dt;
       a.vy += (dy / d) * 18 * dt;
 
+      const shipDist = dist(sx, sy, a.x, a.y);
+      if (shipDist < a.closest) a.closest = shipDist;
+
+      // Near-miss: skimmed close, then started pulling away
+      const hitR = SHIP_R + a.r * 0.85;
+      const nearR = hitR + NEAR_PAD;
+      if (
+        !a.nearAwarded &&
+        a.closest < nearR &&
+        shipDist > a.closest + 6 &&
+        a.closest > hitR
+      ) {
+        a.nearAwarded = true;
+        nearMisses += 1;
+        const mx = (sx + a.x) / 2;
+        const my = (sy + a.y) / 2;
+        burst(mx, my, "#4de8ff", 10);
+        burst(mx, my, "#ffffff", 4);
+        ship.glow = 0.45;
+        awardPoints(25, mx, my - 10, "+25 NEAR", "#4de8ff");
+      }
+
       if (a.x < -80 || a.x > W + 80 || a.y < -80 || a.y > H + 80) {
         asteroids.splice(i, 1);
         continue;
@@ -275,7 +376,7 @@
         continue;
       }
 
-      if (dist(sx, sy, a.x, a.y) < SHIP_R + a.r * 0.85) {
+      if (shipDist < hitR) {
         gameOver();
         return;
       }
@@ -296,15 +397,23 @@
         continue;
       }
       if (dist(sx, sy, o.x, o.y) < SHIP_R + o.r + 4) {
-        score += o.value;
-        startTime -= o.value * 100; // bake bonus into survival clock display
         burst(o.x, o.y, "#ffd166", 16);
+        awardPoints(o.value, o.x, o.y - 12, `+${o.value}`, "#ffd166");
         orbs.splice(i, 1);
       }
     }
 
     scoreEl.textContent = String(score);
+    if (scorePulse > 0) {
+      scoreEl.style.transform = `scale(${1 + scorePulse * 0.35})`;
+      scoreEl.style.color = "#ffd166";
+    } else {
+      scoreEl.style.transform = "";
+      scoreEl.style.color = "";
+    }
+
     updateParticles(dt);
+    updateFloaters(dt);
   }
 
   function updateParticles(dt) {
@@ -316,6 +425,15 @@
       p.vy *= 0.96;
       p.life -= dt;
       if (p.life <= 0) particles.splice(i, 1);
+    }
+  }
+
+  function updateFloaters(dt) {
+    for (let i = floaters.length - 1; i >= 0; i--) {
+      const f = floaters[i];
+      f.y += f.vy * dt;
+      f.life -= dt;
+      if (f.life <= 0) floaters.splice(i, 1);
     }
   }
 
@@ -461,6 +579,18 @@
       ctx.fill();
     }
 
+    // Near-miss aura
+    if (ship.glow > 0) {
+      const ga = ship.glow / 0.45;
+      const ring = ctx.createRadialGradient(sx, sy, SHIP_R, sx, sy, SHIP_R + 18);
+      ring.addColorStop(0, `rgba(77, 232, 255, ${0.35 * ga})`);
+      ring.addColorStop(1, "rgba(77, 232, 255, 0)");
+      ctx.fillStyle = ring;
+      ctx.beginPath();
+      ctx.arc(sx, sy, SHIP_R + 18, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     // Boost flame
     if (ship.boost > 0.05) {
       ctx.save();
@@ -486,7 +616,7 @@
 
     // Glow
     ctx.shadowColor = "#4de8ff";
-    ctx.shadowBlur = 14;
+    ctx.shadowBlur = 14 + (ship.glow > 0 ? 10 : 0);
 
     // Hull
     ctx.beginPath();
@@ -526,6 +656,22 @@
     ctx.globalAlpha = 1;
   }
 
+  function drawFloaters() {
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "bold 16px Segoe UI, system-ui, sans-serif";
+    for (const f of floaters) {
+      const a = Math.max(0, f.life / f.max);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = f.color;
+      ctx.shadowColor = f.color;
+      ctx.shadowBlur = 8;
+      ctx.fillText(f.text, f.x, f.y);
+    }
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+  }
+
   function drawIdleDecor(now) {
     // Soft orbiting ghost ship on start/over for polish
     const ang = now * 0.0006;
@@ -539,6 +685,12 @@
   }
 
   function render(now) {
+    ctx.save();
+    if (shake > 0) {
+      const mag = shake * 10;
+      ctx.translate((Math.random() - 0.5) * mag, (Math.random() - 0.5) * mag);
+    }
+
     drawBackground(now);
     drawPlanet(now);
 
@@ -550,11 +702,10 @@
       drawShip();
     } else {
       drawIdleDecor(now);
-      // Still show leftover particles after crash
-      if (ship && state === "over") {
-        // faint wreck position sparkle already in particles
-      }
     }
+
+    drawFloaters();
+    ctx.restore();
   }
 
   function loop(ts) {

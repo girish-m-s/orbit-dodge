@@ -12,6 +12,7 @@
 
     <div id="hud" class="hidden">
       <span id="score-label">Score: <strong id="score">0</strong></span>
+      <span id="combo" class="hidden">Combo <strong id="combo-mul">1</strong>x</span>
       <span id="best-label">Best: <strong id="best">0</strong></span>
     </div>
 
@@ -23,6 +24,7 @@
           <li><kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd> — orbit direction</li>
           <li><kbd>Space</kbd> / <kbd>↑</kbd> — boost outward</li>
           <li><kbd>↓</kbd> — pull inward</li>
+          <li class="tip">Skim asteroids for near-miss bonuses &amp; combos</li>
         </ul>
         <button id="start-btn" class="btn">Start Mission</button>
       </div>
@@ -31,6 +33,7 @@
         <h1 class="title danger">SHIP LOST</h1>
         <p class="result">Score: <strong id="final-score">0</strong></p>
         <p class="result muted">High Score: <strong id="final-best">0</strong></p>
+        <p class="result muted">Near misses: <strong id="final-nears">0</strong></p>
         <button id="restart-btn" class="btn">Fly Again</button>
       </div>
     </div>

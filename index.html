@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Orbit Dodge</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="game-wrap">
+    <canvas id="game" width="800" height="600"></canvas>
+
+    <div id="hud" class="hidden">
+      <span id="score-label">Score: <strong id="score">0</strong></span>
+      <span id="best-label">Best: <strong id="best">0</strong></span>
+    </div>
+
+    <div id="overlay" class="overlay">
+      <div class="panel" id="start-panel">
+        <h1 class="title">ORBIT DODGE</h1>
+        <p class="tagline">Circle the planet. Dodge the rocks. Grab the orbs.</p>
+        <ul class="controls">
+          <li><kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd> — orbit direction</li>
+          <li><kbd>Space</kbd> / <kbd>↑</kbd> — boost outward</li>
+          <li><kbd>↓</kbd> — pull inward</li>
+        </ul>
+        <button id="start-btn" class="btn">Start Mission</button>
+      </div>
+
+      <div class="panel hidden" id="over-panel">
+        <h1 class="title danger">SHIP LOST</h1>
+        <p class="result">Score: <strong id="final-score">0</strong></p>
+        <p class="result muted">High Score: <strong id="final-best">0</strong></p>
+        <button id="restart-btn" class="btn">Fly Again</button>
+      </div>
+    </div>
+  </div>
+  <script src="game.js"></script>
+</body>
+</html>

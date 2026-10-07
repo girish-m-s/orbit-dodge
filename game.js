@@ -161,6 +161,35 @@
     }
   }
 
+  // Rock shards + dust when an asteroid breaks or exits play
+  function shatterAsteroid(a, mode = "break") {
+    const n = mode === "exit" ? 8 + Math.floor(a.r / 3) : 14 + Math.floor(a.r / 2);
+    const speedScale = mode === "exit" ? 0.55 : 1;
+    const palette =
+      mode === "exit"
+        ? ["#7a8498", "#9aa6b8", "#5c6578", "#c4cedd"]
+        : ["#8a94a8", "#c8d0dc", "#5a6478", "#e8b86a", "#ff9a5c"];
+    for (let i = 0; i < n; i++) {
+      const ang = rand(0, Math.PI * 2);
+      const s = rand(50, 180) * speedScale;
+      const life = rand(0.35, 0.95);
+      particles.push({
+        x: a.x + rand(-a.r * 0.3, a.r * 0.3),
+        y: a.y + rand(-a.r * 0.3, a.r * 0.3),
+        vx: Math.cos(ang) * s + a.vx * 0.15,
+        vy: Math.sin(ang) * s + a.vy * 0.15,
+        life,
+        max: life,
+        r: rand(1.2, 4.2),
+        color: palette[i % palette.length],
+        spin: rand(-6, 6),
+        shard: true,
+      });
+    }
+    // Fine dust puff
+    burst(a.x, a.y, mode === "exit" ? "#6a7388" : "#b8c4d4", mode === "exit" ? 6 : 10);
+  }
+
   function addFloater(x, y, text, color) {
     floaters.push({
       x,
@@ -376,13 +405,15 @@
       }
 
       if (a.x < -80 || a.x > W + 80 || a.y < -80 || a.y > H + 80) {
+        shatterAsteroid(a, "exit");
         asteroids.splice(i, 1);
         continue;
       }
 
-      // Collision with planet — bounce / destroy
+      // Collision with planet — shatter on impact
       if (d < PLANET_R + a.r * 0.7) {
-        burst(a.x, a.y, "#8a9bb8", 8);
+        shatterAsteroid(a, "break");
+        shake = Math.max(shake, 0.12);
         asteroids.splice(i, 1);
         continue;
       }
@@ -434,6 +465,10 @@
       p.y += p.vy * dt;
       p.vx *= 0.96;
       p.vy *= 0.96;
+      if (p.shard) {
+        p.vy += 25 * dt; // faint drift
+        p.rot = (p.rot || 0) + (p.spin || 0) * dt;
+      }
       p.life -= dt;
       if (p.life <= 0) particles.splice(i, 1);
     }
@@ -454,8 +489,9 @@
 
     // Nebula wash
     const g = ctx.createRadialGradient(CX, CY, 40, CX, CY, 380);
-    g.addColorStop(0, "rgba(40, 60, 140, 0.22)");
-    g.addColorStop(0.45, "rgba(80, 30, 100, 0.1)");
+    g.addColorStop(0, "rgba(50, 80, 170, 0.26)");
+    g.addColorStop(0.4, "rgba(100, 40, 130, 0.12)");
+    g.addColorStop(0.75, "rgba(20, 40, 90, 0.06)");
     g.addColorStop(1, "rgba(0, 0, 0, 0)");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
@@ -472,8 +508,8 @@
   function drawPlanet(now) {
     // Atmosphere glow
     const ag = ctx.createRadialGradient(CX, CY, PLANET_R * 0.6, CX, CY, PLANET_R * 1.85);
-    ag.addColorStop(0, "rgba(60, 180, 255, 0.35)");
-    ag.addColorStop(0.55, "rgba(40, 100, 200, 0.12)");
+    ag.addColorStop(0, "rgba(70, 200, 255, 0.4)");
+    ag.addColorStop(0.5, "rgba(50, 120, 220, 0.14)");
     ag.addColorStop(1, "rgba(0, 0, 0, 0)");
     ctx.fillStyle = ag;
     ctx.beginPath();
@@ -489,10 +525,10 @@
       CY,
       PLANET_R
     );
-    pg.addColorStop(0, "#6ec8ff");
-    pg.addColorStop(0.4, "#2a6ec8");
-    pg.addColorStop(0.8, "#143a78");
-    pg.addColorStop(1, "#0a1a40");
+    pg.addColorStop(0, "#7ad4ff");
+    pg.addColorStop(0.35, "#3a7ad8");
+    pg.addColorStop(0.75, "#1a4488");
+    pg.addColorStop(1, "#0a1c48");
     ctx.beginPath();
     ctx.arc(CX, CY, PLANET_R, 0, Math.PI * 2);
     ctx.fillStyle = pg;
@@ -544,11 +580,12 @@
     }
     ctx.closePath();
     const ag = ctx.createRadialGradient(-a.r * 0.3, -a.r * 0.3, 2, 0, 0, a.r);
-    ag.addColorStop(0, "#6a7388");
-    ag.addColorStop(1, "#2a303c");
+    ag.addColorStop(0, "#8a94a8");
+    ag.addColorStop(0.55, "#4a5366");
+    ag.addColorStop(1, "#1e2430");
     ctx.fillStyle = ag;
     ctx.fill();
-    ctx.strokeStyle = "rgba(180, 200, 220, 0.35)";
+    ctx.strokeStyle = "rgba(210, 225, 245, 0.42)";
     ctx.lineWidth = 1.5;
     ctx.stroke();
     ctx.restore();
@@ -706,10 +743,26 @@
   function drawParticles() {
     for (const p of particles) {
       ctx.globalAlpha = Math.max(0, p.life / p.max);
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = p.color;
-      ctx.fill();
+      if (p.shard) {
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot || 0);
+        ctx.beginPath();
+        const s = p.r;
+        ctx.moveTo(s, 0);
+        ctx.lineTo(0, s * 0.65);
+        ctx.lineTo(-s, 0);
+        ctx.lineTo(0, -s * 0.65);
+        ctx.closePath();
+        ctx.fillStyle = p.color;
+        ctx.fill();
+        ctx.restore();
+      } else {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.fill();
+      }
     }
     ctx.globalAlpha = 1;
   }

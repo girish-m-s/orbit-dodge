@@ -17,11 +17,13 @@ Skim past asteroids for **near-miss bonuses**. Chain near-misses and orb pickups
 ## Features
 
 - Canvas-rendered dark space aesthetic with a glowing planet, stars, and particle bursts
+- Glowing ship engine trail (warms up when boosting) and screen shake on near misses / crashes
+- Asteroid shatter shards when rocks hit the planet or leave the playfield
 - Survival-time scoring plus collectible bonus orbs
 - Near-miss scoring with floating popups, ship glow, and combo multiplier
 - Rising difficulty as asteroids spawn faster
 - Game over screen with score, high score, and near-miss count (high score persisted in `localStorage`)
-- Screen shake on crash; start / restart UI overlays
+- Start / restart UI overlays
 
 ## Files
 

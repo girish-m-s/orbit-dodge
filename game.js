@@ -258,7 +258,7 @@
   }
 
   function update(dt, now) {
-    if (shake > 0) shake = Math.max(0, shake - dt);
+    if (shake > 0) shake = Math.max(0, shake - dt * 1.35);
 
     if (state !== "playing") {
       updateParticles(dt);
@@ -319,8 +319,18 @@
     const sx = CX + Math.cos(ship.angle) * ship.radius;
     const sy = CY + Math.sin(ship.angle) * ship.radius;
 
-    ship.trail.push({ x: sx, y: sy, life: 0.35 });
-    if (ship.trail.length > 18) ship.trail.shift();
+    // Engine trail — denser when boosting, longer ribbon behind the ship
+    const trailLife = 0.42 + ship.boost * 0.28;
+    ship.trail.push({
+      x: sx,
+      y: sy,
+      life: trailLife,
+      max: trailLife,
+      boost: ship.boost,
+      r: 2.4 + ship.boost * 2.2,
+    });
+    const trailCap = 28 + Math.floor(ship.boost * 10);
+    while (ship.trail.length > trailCap) ship.trail.shift();
     for (const t of ship.trail) t.life -= dt;
 
     // Asteroids
@@ -361,6 +371,7 @@
         burst(mx, my, "#4de8ff", 10);
         burst(mx, my, "#ffffff", 4);
         ship.glow = 0.45;
+        shake = Math.max(shake, 0.18); // subtle kick on near miss
         awardPoints(25, mx, my - 10, "+25 NEAR", "#4de8ff");
       }
 
@@ -569,13 +580,60 @@
     const sy = CY + Math.sin(ship.angle) * ship.radius;
     const heading = ship.angle + (ship.dir > 0 ? Math.PI / 2 : -Math.PI / 2);
 
-    // Trail
+    // Ship trail ribbon + soft glow dots
+    if (ship.trail.length > 1) {
+      ctx.save();
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      // Soft outer glow stroke
+      ctx.beginPath();
+      let started = false;
+      for (let i = 0; i < ship.trail.length; i++) {
+        const t = ship.trail[i];
+        if (t.life <= 0) continue;
+        if (!started) {
+          ctx.moveTo(t.x, t.y);
+          started = true;
+        } else {
+          ctx.lineTo(t.x, t.y);
+        }
+      }
+      if (started) {
+        ctx.strokeStyle = "rgba(77, 232, 255, 0.22)";
+        ctx.lineWidth = 7;
+        ctx.stroke();
+      }
+      // Bright core stroke fading along the ribbon
+      for (let i = 1; i < ship.trail.length; i++) {
+        const a = ship.trail[i - 1];
+        const b = ship.trail[i];
+        if (a.life <= 0 || b.life <= 0) continue;
+        const fade = Math.max(0, b.life / (b.max || 0.42));
+        const boostMix = b.boost || 0;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.strokeStyle =
+          boostMix > 0.35
+            ? `rgba(255, 190, 90, ${0.15 + fade * 0.75})`
+            : `rgba(77, 232, 255, ${0.12 + fade * 0.7})`;
+        ctx.lineWidth = (1.4 + fade * 2.8 + boostMix * 1.6) * fade;
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
     for (let i = 0; i < ship.trail.length; i++) {
       const t = ship.trail[i];
       if (t.life <= 0) continue;
+      const fade = t.life / (t.max || 0.42);
+      const rad = (t.r || 2.4) * fade;
       ctx.beginPath();
-      ctx.arc(t.x, t.y, 2.2 * (t.life / 0.35), 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(77, 232, 255, ${t.life * 1.4})`;
+      ctx.arc(t.x, t.y, rad, 0, Math.PI * 2);
+      const boostMix = t.boost || 0;
+      ctx.fillStyle =
+        boostMix > 0.35
+          ? `rgba(255, 200, 100, ${fade * 0.85})`
+          : `rgba(120, 240, 255, ${fade * 0.9})`;
       ctx.fill();
     }
 
@@ -687,7 +745,8 @@
   function render(now) {
     ctx.save();
     if (shake > 0) {
-      const mag = shake * 10;
+      // Stronger on crash (shake ~0.55), gentle nudge on near miss (~0.18)
+      const mag = shake * 12;
       ctx.translate((Math.random() - 0.5) * mag, (Math.random() - 0.5) * mag);
     }
 

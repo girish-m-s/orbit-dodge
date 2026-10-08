@@ -19,6 +19,7 @@
   const finalScoreEl = document.getElementById("final-score");
   const finalBestEl = document.getElementById("final-best");
   const finalNearEl = document.getElementById("final-nears");
+  const pausePanel = document.getElementById("pause-panel");
 
   const HS_KEY = "orbit-dodge-highscore";
 
@@ -30,7 +31,7 @@
   const NEAR_PAD = 22;
   const COMBO_WINDOW = 2200;
 
-  let state = "start"; // start | playing | over
+  let state = "start"; // start | playing | paused | over
   let keys = Object.create(null);
   let stars = [];
   let asteroids = [];
@@ -51,6 +52,7 @@
   let nearMisses = 0;
   let shake = 0;
   let scorePulse = 0;
+  let pauseStart = 0;
 
   bestEl.textContent = String(highScore);
 
@@ -257,6 +259,7 @@
     overlay.classList.add("hidden");
     startPanel.classList.add("hidden");
     overPanel.classList.add("hidden");
+    pausePanel.classList.add("hidden");
     hud.classList.remove("hidden");
     spawnAsteroid();
     spawnAsteroid();
@@ -286,7 +289,37 @@
     overPanel.classList.remove("hidden");
   }
 
+  function pauseGame() {
+    if (state !== "playing") return;
+    state = "paused";
+    pauseStart = performance.now();
+    keys = Object.create(null); // drop held keys so nothing sticks on resume
+    overlay.classList.remove("hidden");
+    startPanel.classList.add("hidden");
+    overPanel.classList.add("hidden");
+    pausePanel.classList.remove("hidden");
+  }
+
+  function resumeGame() {
+    if (state !== "paused") return;
+    // Shift every clock forward so the pause doesn't count as survival time
+    const pausedFor = performance.now() - pauseStart;
+    startTime += pausedFor;
+    lastSpawn += pausedFor;
+    lastOrb += pausedFor;
+    lastTs = performance.now();
+    state = "playing";
+    overlay.classList.add("hidden");
+    pausePanel.classList.add("hidden");
+  }
+
+  function togglePause() {
+    if (state === "playing") pauseGame();
+    else if (state === "paused") resumeGame();
+  }
+
   function update(dt, now) {
+    if (state === "paused") return; // freeze the whole scene, shake included
     if (shake > 0) shake = Math.max(0, shake - dt * 1.35);
 
     if (state !== "playing") {
@@ -810,7 +843,7 @@
     for (const o of orbs) drawOrb(o);
     drawParticles();
 
-    if (state === "playing") {
+    if (state === "playing" || state === "paused") {
       drawShip();
     } else {
       drawIdleDecor(now);
@@ -831,6 +864,18 @@
 
   // Input
   window.addEventListener("keydown", (e) => {
+    if (e.key === "p" || e.key === "P" || e.key === "Escape") {
+      e.preventDefault();
+      togglePause();
+      return;
+    }
+    if (state === "paused") {
+      if (e.key === " " || e.key === "Enter") {
+        e.preventDefault();
+        resumeGame();
+      }
+      return;
+    }
     keys[e.key] = true;
     if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) {
       e.preventDefault();
@@ -846,6 +891,13 @@
 
   document.getElementById("start-btn").addEventListener("click", startGame);
   document.getElementById("restart-btn").addEventListener("click", startGame);
+  document.getElementById("resume-btn").addEventListener("click", resumeGame);
+
+  // Auto-pause when the tab or window loses focus so you never die off-screen
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) pauseGame();
+  });
+  window.addEventListener("blur", pauseGame);
 
   // Boot
   initStars();

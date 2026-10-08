@@ -24,6 +24,7 @@
           <li><kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd> — orbit direction</li>
           <li><kbd>Space</kbd> / <kbd>↑</kbd> — boost outward</li>
           <li><kbd>↓</kbd> — pull inward</li>
+          <li><kbd>P</kbd> / <kbd>Esc</kbd> — pause</li>
           <li class="tip">Skim asteroids for near-miss bonuses &amp; combos</li>
         </ul>
         <button id="start-btn" class="btn">Start Mission</button>
@@ -35,6 +36,13 @@
         <p class="result muted">High Score: <strong id="final-best">0</strong></p>
         <p class="result muted">Near misses: <strong id="final-nears">0</strong></p>
         <button id="restart-btn" class="btn">Fly Again</button>
+      </div>
+
+      <div class="panel hidden" id="pause-panel">
+        <h1 class="title">PAUSED</h1>
+        <p class="tagline">Your orbit is holding steady.</p>
+        <button id="resume-btn" class="btn">Resume</button>
+        <p class="hint">Press <kbd>P</kbd>, <kbd>Esc</kbd>, or <kbd>Space</kbd> to resume</p>
       </div>
     </div>
   </div>

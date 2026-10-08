@@ -162,6 +162,24 @@ html, body {
   font-size: 0.85rem;
 }
 
+.hint {
+  margin-top: 1rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.hint kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0.1em 0.4em;
+  font-family: inherit;
+  font-size: 0.85em;
+  color: var(--bg);
+  background: linear-gradient(180deg, #9ef0ff, var(--cyan));
+  border-radius: 5px;
+  box-shadow: 0 2px 0 #2a8a9a;
+}
+
 .result {
   font-size: 1.15rem;
   margin: 0.35rem 0;

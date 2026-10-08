@@ -22,6 +22,7 @@ Skim past asteroids for **near-miss bonuses**. Chain near-misses and orb pickups
 - Asteroid shatter shards when rocks hit the planet or leave the playfield
 - Survival-time scoring plus collectible bonus orbs
 - Near-miss scoring with floating popups, ship glow, and combo multiplier
+- Pulsing edge warnings show where each asteroid is about to fly in
 - Rising difficulty as asteroids spawn faster
 - Game over screen with score, high score, and near-miss count (high score persisted in `localStorage`)
 - Start / restart / pause UI overlays (the game auto-pauses if you switch tabs or windows)

@@ -30,11 +30,13 @@
   const SHIP_R = 9;
   const NEAR_PAD = 22;
   const COMBO_WINDOW = 2200;
+  const WARN_TIME = 0.75; // seconds of edge warning before a rock enters
 
   let state = "start"; // start | playing | paused | over
   let keys = Object.create(null);
   let stars = [];
   let asteroids = [];
+  let incoming = []; // rocks waiting off-screen behind an edge warning
   let orbs = [];
   let particles = [];
   let floaters = [];
@@ -118,7 +120,8 @@
     const len = Math.hypot(dx, dy) || 1;
     const speed = rand(55, 110) + Math.min(score / 40, 70);
 
-    asteroids.push({
+    incoming.push({
+      warn: WARN_TIME,
       x,
       y,
       vx: (dx / len) * speed,
@@ -239,6 +242,7 @@
 
   function startGame() {
     asteroids = [];
+    incoming = [];
     orbs = [];
     particles = [];
     floaters = [];
@@ -399,6 +403,16 @@
     if (now - lastSpawn > spawnInterval) {
       spawnAsteroid();
       lastSpawn = now;
+    }
+
+    // Release rocks whose edge warning has finished
+    for (let i = incoming.length - 1; i >= 0; i--) {
+      const w = incoming[i];
+      w.warn -= dt;
+      if (w.warn <= 0) {
+        asteroids.push(w);
+        incoming.splice(i, 1);
+      }
     }
 
     for (let i = asteroids.length - 1; i >= 0; i--) {
@@ -624,6 +638,42 @@
     ctx.restore();
   }
 
+  // Pulsing chevron pinned to the screen edge where a rock is about to enter
+  function drawWarning(w, now) {
+    const pad = 16;
+    const x = Math.max(pad, Math.min(W - pad, w.x));
+    const y = Math.max(pad, Math.min(H - pad, w.y));
+    const heading = Math.atan2(w.vy, w.vx);
+    const t = 1 - w.warn / WARN_TIME; // 0 -> 1 as the rock gets closer
+    const pulse = 0.55 + 0.45 * Math.sin(now * 0.025);
+    const size = 7 + w.r * 0.35 + t * 3;
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.globalAlpha = (0.35 + 0.65 * t) * pulse;
+
+    const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, size * 2.4);
+    halo.addColorStop(0, "rgba(255, 110, 70, 0.55)");
+    halo.addColorStop(1, "rgba(255, 110, 70, 0)");
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(0, 0, size * 2.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.rotate(heading);
+    ctx.beginPath();
+    ctx.moveTo(size, 0);
+    ctx.lineTo(-size * 0.7, size * 0.75);
+    ctx.lineTo(-size * 0.25, 0);
+    ctx.lineTo(-size * 0.7, -size * 0.75);
+    ctx.closePath();
+    ctx.fillStyle = "#ff7a4d";
+    ctx.shadowColor = "#ff7a4d";
+    ctx.shadowBlur = 10;
+    ctx.fill();
+    ctx.restore();
+  }
+
   function drawOrb(o) {
     const pulse = 1 + Math.sin(o.pulse) * 0.18;
     const alpha = Math.min(1, o.life / 1500);
@@ -840,6 +890,9 @@
     drawPlanet(now);
 
     for (const a of asteroids) drawAsteroid(a);
+    if (state === "playing" || state === "paused") {
+      for (const w of incoming) drawWarning(w, now);
+    }
     for (const o of orbs) drawOrb(o);
     drawParticles();
 

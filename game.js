@@ -20,6 +20,7 @@
   const finalBestEl = document.getElementById("final-best");
   const finalNearEl = document.getElementById("final-nears");
   const pausePanel = document.getElementById("pause-panel");
+  const shieldEl = document.getElementById("shield");
 
   const HS_KEY = "orbit-dodge-highscore";
 
@@ -31,6 +32,8 @@
   const NEAR_PAD = 22;
   const COMBO_WINDOW = 2200;
   const WARN_TIME = 0.75; // seconds of edge warning before a rock enters
+  const SHIELD_CHANCE = 0.2; // odds a new orb is a shield instead of points
+  const INVULN_TIME = 1.2; // grace period after the shield absorbs a hit
 
   let state = "start"; // start | playing | paused | over
   let keys = Object.create(null);
@@ -92,7 +95,15 @@
       pull: 0,
       trail: [],
       glow: 0,
+      shield: false,
+      invuln: 0,
     };
+    updateShieldHud();
+  }
+
+  function updateShieldHud() {
+    if (!shieldEl) return;
+    shieldEl.classList.toggle("hidden", !(ship && ship.shield));
   }
 
   function spawnAsteroid() {
@@ -139,7 +150,14 @@
   function spawnOrb() {
     const angle = rand(0, Math.PI * 2);
     const radius = rand(MIN_ORBIT + 20, MAX_ORBIT - 20);
+    // Occasionally offer a shield, but never while one is held or already waiting
+    const shieldWaiting = orbs.some((o) => o.kind === "shield");
+    const kind =
+      !ship.shield && !shieldWaiting && score > 40 && Math.random() < SHIELD_CHANCE
+        ? "shield"
+        : "points";
     orbs.push({
+      kind,
       x: CX + Math.cos(angle) * radius,
       y: CY + Math.sin(angle) * radius,
       r: 7,
@@ -346,6 +364,7 @@
 
     if (scorePulse > 0) scorePulse = Math.max(0, scorePulse - dt);
     if (ship.glow > 0) ship.glow = Math.max(0, ship.glow - dt);
+    if (ship.invuln > 0) ship.invuln = Math.max(0, ship.invuln - dt);
 
     // Controls
     if (keys["ArrowLeft"] || keys["a"] || keys["A"]) ship.dir = -1;
@@ -465,7 +484,19 @@
         continue;
       }
 
-      if (shipDist < hitR) {
+      if (shipDist < hitR && ship.invuln <= 0) {
+        if (ship.shield) {
+          // Shield soaks the hit: smash the rock and grant a short grace period
+          ship.shield = false;
+          ship.invuln = INVULN_TIME;
+          updateShieldHud();
+          shatterAsteroid(a, "break");
+          burst(sx, sy, "#7dffb0", 22);
+          shake = Math.max(shake, 0.35);
+          addFloater(sx, sy - 16, "SHIELD BROKEN", "#7dffb0");
+          asteroids.splice(i, 1);
+          continue;
+        }
         gameOver();
         return;
       }
@@ -486,8 +517,15 @@
         continue;
       }
       if (dist(sx, sy, o.x, o.y) < SHIP_R + o.r + 4) {
-        burst(o.x, o.y, "#ffd166", 16);
-        awardPoints(o.value, o.x, o.y - 12, `+${o.value}`, "#ffd166");
+        if (o.kind === "shield") {
+          ship.shield = true;
+          updateShieldHud();
+          burst(o.x, o.y, "#7dffb0", 18);
+          addFloater(o.x, o.y - 12, "SHIELD UP", "#7dffb0");
+        } else {
+          burst(o.x, o.y, "#ffd166", 16);
+          awardPoints(o.value, o.x, o.y - 12, `+${o.value}`, "#ffd166");
+        }
         orbs.splice(i, 1);
       }
     }
@@ -677,20 +715,35 @@
   function drawOrb(o) {
     const pulse = 1 + Math.sin(o.pulse) * 0.18;
     const alpha = Math.min(1, o.life / 1500);
+    const isShield = o.kind === "shield";
     ctx.save();
     ctx.globalAlpha = alpha;
     const glow = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, o.r * 3.5 * pulse);
-    glow.addColorStop(0, "rgba(255, 209, 102, 0.85)");
-    glow.addColorStop(0.4, "rgba(255, 180, 60, 0.35)");
-    glow.addColorStop(1, "rgba(255, 180, 60, 0)");
+    if (isShield) {
+      glow.addColorStop(0, "rgba(125, 255, 176, 0.85)");
+      glow.addColorStop(0.4, "rgba(60, 220, 140, 0.35)");
+      glow.addColorStop(1, "rgba(60, 220, 140, 0)");
+    } else {
+      glow.addColorStop(0, "rgba(255, 209, 102, 0.85)");
+      glow.addColorStop(0.4, "rgba(255, 180, 60, 0.35)");
+      glow.addColorStop(1, "rgba(255, 180, 60, 0)");
+    }
     ctx.fillStyle = glow;
     ctx.beginPath();
     ctx.arc(o.x, o.y, o.r * 3.5 * pulse, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
     ctx.arc(o.x, o.y, o.r * pulse, 0, Math.PI * 2);
-    ctx.fillStyle = "#fff6c8";
+    ctx.fillStyle = isShield ? "#e6fff0" : "#fff6c8";
     ctx.fill();
+    if (isShield) {
+      // Ring marks it as a shield, not just a different color
+      ctx.beginPath();
+      ctx.arc(o.x, o.y, o.r * 1.9 * pulse, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(125, 255, 176, 0.9)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
     ctx.restore();
   }
 
@@ -768,6 +821,27 @@
       ctx.arc(sx, sy, SHIP_R + 18, 0, Math.PI * 2);
       ctx.fill();
     }
+
+    // Shield bubble
+    if (ship.shield) {
+      const t = performance.now() * 0.004;
+      const br = SHIP_R + 9 + Math.sin(t) * 1.5;
+      ctx.save();
+      const sg = ctx.createRadialGradient(sx, sy, br * 0.5, sx, sy, br);
+      sg.addColorStop(0, "rgba(125, 255, 176, 0)");
+      sg.addColorStop(1, "rgba(125, 255, 176, 0.28)");
+      ctx.fillStyle = sg;
+      ctx.beginPath();
+      ctx.arc(sx, sy, br, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(125, 255, 176, 0.75)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Blink while the post-shield grace period runs
+    if (ship.invuln > 0 && Math.floor(ship.invuln * 14) % 2 === 0) return;
 
     // Boost flame
     if (ship.boost > 0.05) {

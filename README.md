@@ -13,7 +13,7 @@ A small browser arcade game: pilot a ship in orbit around a planet, dodge drifti
 | `↓` | Pull inward |
 | `P` / `Esc` | Pause / resume |
 
-Skim past asteroids for **near-miss bonuses**. Chain near-misses and orb pickups within a couple of seconds to build a **combo multiplier**.
+Skim past asteroids for **near-miss bonuses**. Chain near-misses and orb pickups within a couple of seconds to build a **combo multiplier**. Watch for green ringed **shield orbs**: a shield absorbs one asteroid hit, then gives you a brief blink of invulnerability.
 
 ## Features
 
@@ -21,6 +21,7 @@ Skim past asteroids for **near-miss bonuses**. Chain near-misses and orb pickups
 - Glowing ship engine trail (warms up when boosting) and screen shake on near misses / crashes
 - Asteroid shatter shards when rocks hit the planet or leave the playfield
 - Survival-time scoring plus collectible bonus orbs
+- Shield power-up orbs with a glowing bubble, HUD badge, and post-hit grace period
 - Near-miss scoring with floating popups, ship glow, and combo multiplier
 - Pulsing edge warnings show where each asteroid is about to fly in
 - Rising difficulty as asteroids spawn faster

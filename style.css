@@ -249,3 +249,28 @@ html, body {
     font-size: 0.8rem;
   }
 }
+
+.new-best {
+  margin: -4px 0 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #ffd36b;
+  text-shadow: 0 0 12px rgba(255, 211, 107, 0.7);
+  animation: new-best-pop 0.6s ease-out, new-best-glow 1.6s ease-in-out 0.6s infinite;
+}
+
+@keyframes new-best-pop {
+  0% { transform: scale(0.4); opacity: 0; }
+  70% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+@keyframes new-best-glow {
+  0%, 100% { text-shadow: 0 0 10px rgba(255, 211, 107, 0.55); }
+  50% { text-shadow: 0 0 20px rgba(255, 211, 107, 0.95); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .new-best { animation: none; }
+}

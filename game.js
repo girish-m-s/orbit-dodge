@@ -21,6 +21,7 @@
   const finalNearEl = document.getElementById("final-nears");
   const pausePanel = document.getElementById("pause-panel");
   const shieldEl = document.getElementById("shield");
+  const newBestEl = document.getElementById("new-best");
 
   const HS_KEY = "orbit-dodge-highscore";
 
@@ -296,10 +297,15 @@
     shake = 0.55;
     resetCombo();
 
-    if (score > highScore) {
+    const isNewBest = score > highScore && score > 0;
+    if (isNewBest) {
       highScore = score;
       localStorage.setItem(HS_KEY, String(highScore));
+      // Celebrate with a gold burst and banner
+      burst(sx, sy, "#ffd36b", 36);
+      addFloater(sx, sy - 18, "NEW BEST!", "#ffd36b");
     }
+    newBestEl.classList.toggle("hidden", !isNewBest);
 
     finalScoreEl.textContent = String(score);
     finalBestEl.textContent = String(highScore);

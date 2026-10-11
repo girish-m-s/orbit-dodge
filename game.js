@@ -38,6 +38,7 @@
 
   let state = "start"; // start | playing | paused | over
   let keys = Object.create(null);
+  const pointers = new Map(); // active touches / mouse presses on the canvas
   let stars = [];
   let asteroids = [];
   let incoming = []; // rocks waiting off-screen behind an edge warning
@@ -322,6 +323,7 @@
     state = "paused";
     pauseStart = performance.now();
     keys = Object.create(null); // drop held keys so nothing sticks on resume
+    pointers.clear();
     overlay.classList.remove("hidden");
     startPanel.classList.add("hidden");
     overPanel.classList.add("hidden");
@@ -376,8 +378,11 @@
     if (keys["ArrowLeft"] || keys["a"] || keys["A"]) ship.dir = -1;
     if (keys["ArrowRight"] || keys["d"] || keys["D"]) ship.dir = 1;
 
-    const boosting = keys[" "] || keys["ArrowUp"] || keys["w"] || keys["W"];
-    const pulling = keys["ArrowDown"] || keys["s"] || keys["S"];
+    // Touch / mouse: one finger held = boost, two or more = pull inward
+    const touchBoost = pointers.size === 1;
+    const touchPull = pointers.size >= 2;
+    const boosting = keys[" "] || keys["ArrowUp"] || keys["w"] || keys["W"] || touchBoost;
+    const pulling = keys["ArrowDown"] || keys["s"] || keys["S"] || touchPull;
 
     if (boosting) {
       ship.boost = Math.min(1, ship.boost + dt * 3.5);
@@ -1021,6 +1026,29 @@
   window.addEventListener("keyup", (e) => {
     keys[e.key] = false;
   });
+
+  // Pointer input: pressing the left or right half of the playfield sets the
+  // orbit direction, and keeping it held boosts outward.
+  function canvasX(e) {
+    const rect = canvas.getBoundingClientRect();
+    return ((e.clientX - rect.left) / rect.width) * W;
+  }
+  canvas.addEventListener("pointerdown", (e) => {
+    if (state !== "playing") return;
+    e.preventDefault();
+    try {
+      canvas.setPointerCapture(e.pointerId);
+    } catch (_) {
+      /* capture is optional */
+    }
+    pointers.set(e.pointerId, true);
+    ship.dir = canvasX(e) < CX ? -1 : 1;
+  });
+  const releasePointer = (e) => pointers.delete(e.pointerId);
+  canvas.addEventListener("pointerup", releasePointer);
+  canvas.addEventListener("pointercancel", releasePointer);
+  canvas.addEventListener("lostpointercapture", releasePointer);
+  canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
   document.getElementById("start-btn").addEventListener("click", startGame);
   document.getElementById("restart-btn").addEventListener("click", startGame);

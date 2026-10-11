@@ -43,6 +43,9 @@ html, body {
   width: 100%;
   height: 100%;
   background: transparent;
+  touch-action: none; /* keep taps and holds from scrolling or zooming the page */
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 #hud {

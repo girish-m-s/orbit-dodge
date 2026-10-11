@@ -12,6 +12,9 @@ A small browser arcade game: pilot a ship in orbit around a planet, dodge drifti
 | `Space` / `↑` | Boost outward (then fall back) |
 | `↓` | Pull inward |
 | `P` / `Esc` | Pause / resume |
+| Tap / click left or right half | Orbit that direction |
+| Hold one finger / mouse button | Boost outward |
+| Hold two fingers | Pull inward |
 
 Skim past asteroids for **near-miss bonuses**. Chain near-misses and orb pickups within a couple of seconds to build a **combo multiplier**. Watch for green ringed **shield orbs**: a shield absorbs one asteroid hit, then gives you a brief blink of invulnerability.
 

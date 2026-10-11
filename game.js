@@ -24,6 +24,8 @@
   const newBestEl = document.getElementById("new-best");
 
   const HS_KEY = "orbit-dodge-highscore";
+  const SHAKE_KEY = "orbit-dodge-shake";
+  const shakeBtn = document.getElementById("shake-btn");
 
   const PLANET_R = 48;
   const MIN_ORBIT = 78;
@@ -61,7 +63,31 @@
   let scorePulse = 0;
   let pauseStart = 0;
 
+  // Screen shake defaults off for players who ask their OS for reduced motion
+  const prefersReducedMotion =
+    window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const savedShake = localStorage.getItem(SHAKE_KEY);
+  let shakeEnabled = savedShake === null ? !prefersReducedMotion : savedShake === "on";
+
   bestEl.textContent = String(highScore);
+
+  function updateShakeButton() {
+    if (!shakeBtn) return;
+    shakeBtn.textContent = `Screen shake: ${shakeEnabled ? "On" : "Off"}`;
+    shakeBtn.setAttribute("aria-pressed", String(shakeEnabled));
+  }
+
+  function toggleShake() {
+    shakeEnabled = !shakeEnabled;
+    localStorage.setItem(SHAKE_KEY, shakeEnabled ? "on" : "off");
+    if (!shakeEnabled) shake = 0;
+    updateShakeButton();
+    if (state === "playing") {
+      const sx = CX + Math.cos(ship.angle) * ship.radius;
+      const sy = CY + Math.sin(ship.angle) * ship.radius;
+      addFloater(sx, sy - 20, shakeEnabled ? "SHAKE ON" : "SHAKE OFF", "#9fb4d8");
+    }
+  }
 
   function rand(a, b) {
     return a + Math.random() * (b - a);
@@ -965,7 +991,7 @@
 
   function render(now) {
     ctx.save();
-    if (shake > 0) {
+    if (shake > 0 && shakeEnabled) {
       // Stronger on crash (shake ~0.55), gentle nudge on near miss (~0.18)
       const mag = shake * 12;
       ctx.translate((Math.random() - 0.5) * mag, (Math.random() - 0.5) * mag);
@@ -1005,6 +1031,11 @@
     if (e.key === "p" || e.key === "P" || e.key === "Escape") {
       e.preventDefault();
       togglePause();
+      return;
+    }
+    if (e.key === "m" || e.key === "M") {
+      e.preventDefault();
+      toggleShake();
       return;
     }
     if (state === "paused") {
@@ -1053,6 +1084,7 @@
   document.getElementById("start-btn").addEventListener("click", startGame);
   document.getElementById("restart-btn").addEventListener("click", startGame);
   document.getElementById("resume-btn").addEventListener("click", resumeGame);
+  if (shakeBtn) shakeBtn.addEventListener("click", toggleShake);
 
   // Auto-pause when the tab or window loses focus so you never die off-screen
   document.addEventListener("visibilitychange", () => {
@@ -1061,6 +1093,7 @@
   window.addEventListener("blur", pauseGame);
 
   // Boot
+  updateShakeButton();
   initStars();
   resetShip();
   lastTs = performance.now();

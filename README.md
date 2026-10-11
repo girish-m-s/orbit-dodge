@@ -12,6 +12,7 @@ A small browser arcade game: pilot a ship in orbit around a planet, dodge drifti
 | `Space` / `↑` | Boost outward (then fall back) |
 | `↓` | Pull inward |
 | `P` / `Esc` | Pause / resume |
+| `M` | Toggle screen shake (also on the pause menu) |
 | Tap / click left or right half | Orbit that direction |
 | Hold one finger / mouse button | Boost outward |
 | Hold two fingers | Pull inward |
@@ -29,6 +30,7 @@ Skim past asteroids for **near-miss bonuses**. Chain near-misses and orb pickups
 - Pulsing edge warnings show where each asteroid is about to fly in
 - Rising difficulty as asteroids spawn faster
 - Game over screen with score, high score, and near-miss count (high score persisted in `localStorage`)
+- Screen shake toggle that remembers your choice and starts off if your system prefers reduced motion
 - Start / restart / pause UI overlays (the game auto-pauses if you switch tabs or windows)
 
 ## Files

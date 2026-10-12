@@ -22,6 +22,7 @@ Skim past asteroids for **near-miss bonuses**. Chain near-misses and orb pickups
 ## Features
 
 - Canvas-rendered dark space aesthetic with a glowing planet, stars, and particle bursts
+- Synthesized sound effects (Web Audio, no asset files): near-miss chimes and orb blips that climb a musical scale as your combo grows, shield cues, a crash rumble, and a new-best fanfare
 - Glowing ship engine trail (warms up when boosting) and screen shake on near misses / crashes
 - Asteroid shatter shards when rocks hit the planet or leave the playfield
 - Survival-time scoring plus collectible bonus orbs

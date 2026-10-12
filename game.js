@@ -89,6 +89,119 @@
     }
   }
 
+  // Tiny Web Audio synth: every sound is generated on the fly, no asset files.
+  const Sfx = (() => {
+    let ac = null;
+    let master = null;
+    let noiseBuf = null;
+
+    function ensure() {
+      if (!ac) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        try {
+          ac = new AC();
+        } catch (_) {
+          return null;
+        }
+        master = ac.createGain();
+        master.gain.value = 0.32;
+        master.connect(ac.destination);
+        noiseBuf = ac.createBuffer(1, Math.floor(ac.sampleRate * 0.8), ac.sampleRate);
+        const data = noiseBuf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      }
+      if (ac.state === "suspended") ac.resume();
+      return ac;
+    }
+
+    // Route through an optional stereo panner so cues can come from a side
+    function out(pan) {
+      if (!pan || !ac.createStereoPanner) return master;
+      const p = ac.createStereoPanner();
+      p.pan.value = Math.max(-1, Math.min(1, pan));
+      p.connect(master);
+      return p;
+    }
+
+    function tone({ freq, to = freq, type = "sine", dur = 0.15, vol = 0.3, delay = 0, pan = 0 }) {
+      if (!ensure()) return;
+      const t0 = ac.currentTime + delay;
+      const osc = ac.createOscillator();
+      const g = ac.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, t0);
+      if (to !== freq) osc.frequency.exponentialRampToValueAtTime(Math.max(20, to), t0 + dur);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(vol, t0 + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      osc.connect(g);
+      g.connect(out(pan));
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.05);
+    }
+
+    function noise({ dur = 0.3, vol = 0.3, from = 2000, to = 200, delay = 0 }) {
+      if (!ensure()) return;
+      const t0 = ac.currentTime + delay;
+      const src = ac.createBufferSource();
+      src.buffer = noiseBuf;
+      const f = ac.createBiquadFilter();
+      f.type = "lowpass";
+      f.frequency.setValueAtTime(from, t0);
+      f.frequency.exponentialRampToValueAtTime(Math.max(40, to), t0 + dur);
+      const g = ac.createGain();
+      g.gain.setValueAtTime(vol, t0);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      src.connect(f);
+      f.connect(g);
+      g.connect(master);
+      src.start(t0);
+      src.stop(t0 + dur + 0.05);
+    }
+
+    // Major pentatonic steps so rising combos always sound musical
+    const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24];
+    const step = (base, n) => base * Math.pow(2, PENTA[Math.min(n, PENTA.length - 1)] / 12);
+
+    return {
+      unlock: ensure,
+      start() {
+        tone({ freq: 220, to: 660, type: "triangle", dur: 0.35, vol: 0.18 });
+        tone({ freq: 440, to: 990, type: "sine", dur: 0.3, vol: 0.1, delay: 0.06 });
+      },
+      nearMiss(comboLevel) {
+        const f = step(660, Math.max(0, comboLevel - 1));
+        tone({ freq: f, type: "sine", dur: 0.12, vol: 0.2 });
+        tone({ freq: f * 1.5, type: "sine", dur: 0.18, vol: 0.14, delay: 0.05 });
+        noise({ dur: 0.12, vol: 0.05, from: 6000, to: 1500 });
+      },
+      orb(comboLevel) {
+        const f = step(520, Math.max(0, comboLevel - 1));
+        tone({ freq: f, to: f * 2, type: "triangle", dur: 0.14, vol: 0.22 });
+      },
+      shieldUp() {
+        [440, 554, 659, 880].forEach((f, i) =>
+          tone({ freq: f, type: "triangle", dur: 0.16, vol: 0.14, delay: i * 0.05 })
+        );
+      },
+      shieldBreak() {
+        noise({ dur: 0.35, vol: 0.22, from: 5000, to: 400 });
+        tone({ freq: 720, to: 180, type: "square", dur: 0.3, vol: 0.06 });
+      },
+      crash() {
+        noise({ dur: 0.9, vol: 0.4, from: 1800, to: 60 });
+        tone({ freq: 140, to: 38, type: "sine", dur: 0.8, vol: 0.35 });
+      },
+      newBest() {
+        [523, 659, 784, 1047].forEach((f, i) =>
+          tone({ freq: f, type: "triangle", dur: 0.26, vol: 0.16, delay: 0.45 + i * 0.11 })
+        );
+        tone({ freq: 1568, type: "sine", dur: 0.6, vol: 0.08, delay: 0.45 + 4 * 0.11 });
+      },
+    };
+  })();
+
   function rand(a, b) {
     return a + Math.random() * (b - a);
   }
@@ -311,6 +424,7 @@
     overPanel.classList.add("hidden");
     pausePanel.classList.add("hidden");
     hud.classList.remove("hidden");
+    Sfx.start();
     spawnAsteroid();
     spawnAsteroid();
   }
@@ -323,6 +437,7 @@
     burst(sx, sy, "#4de8ff", 12);
     shake = 0.55;
     resetCombo();
+    Sfx.crash();
 
     const isNewBest = score > highScore && score > 0;
     if (isNewBest) {
@@ -331,6 +446,7 @@
       // Celebrate with a gold burst and banner
       burst(sx, sy, "#ffd36b", 36);
       addFloater(sx, sy - 18, "NEW BEST!", "#ffd36b");
+      Sfx.newBest();
     }
     newBestEl.classList.toggle("hidden", !isNewBest);
 
@@ -505,6 +621,7 @@
         ship.glow = 0.45;
         shake = Math.max(shake, 0.18); // subtle kick on near miss
         awardPoints(25, mx, my - 10, "+25 NEAR", "#4de8ff");
+        Sfx.nearMiss(combo);
       }
 
       if (a.x < -80 || a.x > W + 80 || a.y < -80 || a.y > H + 80) {
@@ -531,6 +648,7 @@
           burst(sx, sy, "#7dffb0", 22);
           shake = Math.max(shake, 0.35);
           addFloater(sx, sy - 16, "SHIELD BROKEN", "#7dffb0");
+          Sfx.shieldBreak();
           asteroids.splice(i, 1);
           continue;
         }
@@ -559,9 +677,11 @@
           updateShieldHud();
           burst(o.x, o.y, "#7dffb0", 18);
           addFloater(o.x, o.y - 12, "SHIELD UP", "#7dffb0");
+          Sfx.shieldUp();
         } else {
           burst(o.x, o.y, "#ffd166", 16);
           awardPoints(o.value, o.x, o.y - 12, `+${o.value}`, "#ffd166");
+          Sfx.orb(combo);
         }
         orbs.splice(i, 1);
       }
@@ -1028,6 +1148,7 @@
 
   // Input
   window.addEventListener("keydown", (e) => {
+    Sfx.unlock();
     if (e.key === "p" || e.key === "P" || e.key === "Escape") {
       e.preventDefault();
       togglePause();
@@ -1065,6 +1186,7 @@
     return ((e.clientX - rect.left) / rect.width) * W;
   }
   canvas.addEventListener("pointerdown", (e) => {
+    Sfx.unlock();
     if (state !== "playing") return;
     e.preventDefault();
     try {

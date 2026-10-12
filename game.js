@@ -26,6 +26,8 @@
   const HS_KEY = "orbit-dodge-highscore";
   const SHAKE_KEY = "orbit-dodge-shake";
   const shakeBtn = document.getElementById("shake-btn");
+  const SOUND_KEY = "orbit-dodge-sound";
+  const soundBtn = document.getElementById("sound-btn");
 
   const PLANET_R = 48;
   const MIN_ORBIT = 78;
@@ -94,8 +96,11 @@
     let ac = null;
     let master = null;
     let noiseBuf = null;
+    let enabled = localStorage.getItem(SOUND_KEY) !== "off";
+    const MASTER_VOL = 0.32;
 
     function ensure() {
+      if (!enabled) return null;
       if (!ac) {
         const AC = window.AudioContext || window.webkitAudioContext;
         if (!AC) return null;
@@ -105,7 +110,7 @@
           return null;
         }
         master = ac.createGain();
-        master.gain.value = 0.32;
+        master.gain.value = MASTER_VOL;
         master.connect(ac.destination);
         noiseBuf = ac.createBuffer(1, Math.floor(ac.sampleRate * 0.8), ac.sampleRate);
         const data = noiseBuf.getChannelData(0);
@@ -166,6 +171,23 @@
 
     return {
       unlock: ensure,
+      get enabled() {
+        return enabled;
+      },
+      setEnabled(on) {
+        enabled = on;
+        localStorage.setItem(SOUND_KEY, on ? "on" : "off");
+        if (!ac) return;
+        // Fade rather than hard-cut so muting mid-sound never clicks
+        const t = ac.currentTime;
+        master.gain.cancelScheduledValues(t);
+        master.gain.setValueAtTime(master.gain.value, t);
+        master.gain.linearRampToValueAtTime(on ? MASTER_VOL : 0, t + 0.05);
+        if (on) ensure();
+      },
+      toggleBlip() {
+        tone({ freq: 880, to: 1320, type: "sine", dur: 0.1, vol: 0.16 });
+      },
       start() {
         tone({ freq: 220, to: 660, type: "triangle", dur: 0.35, vol: 0.18 });
         tone({ freq: 440, to: 990, type: "sine", dur: 0.3, vol: 0.1, delay: 0.06 });
@@ -201,6 +223,23 @@
       },
     };
   })();
+
+  function updateSoundButton() {
+    if (!soundBtn) return;
+    soundBtn.textContent = `Sound: ${Sfx.enabled ? "On" : "Off"}`;
+    soundBtn.setAttribute("aria-pressed", String(Sfx.enabled));
+  }
+
+  function toggleSound() {
+    Sfx.setEnabled(!Sfx.enabled);
+    if (Sfx.enabled) Sfx.toggleBlip();
+    updateSoundButton();
+    if (state === "playing") {
+      const sx = CX + Math.cos(ship.angle) * ship.radius;
+      const sy = CY + Math.sin(ship.angle) * ship.radius;
+      addFloater(sx, sy - 20, Sfx.enabled ? "SOUND ON" : "SOUND OFF", "#9fb4d8");
+    }
+  }
 
   function rand(a, b) {
     return a + Math.random() * (b - a);
@@ -1159,6 +1198,11 @@
       toggleShake();
       return;
     }
+    if (e.key === "n" || e.key === "N") {
+      e.preventDefault();
+      toggleSound();
+      return;
+    }
     if (state === "paused") {
       if (e.key === " " || e.key === "Enter") {
         e.preventDefault();
@@ -1207,6 +1251,7 @@
   document.getElementById("restart-btn").addEventListener("click", startGame);
   document.getElementById("resume-btn").addEventListener("click", resumeGame);
   if (shakeBtn) shakeBtn.addEventListener("click", toggleShake);
+  if (soundBtn) soundBtn.addEventListener("click", toggleSound);
 
   // Auto-pause when the tab or window loses focus so you never die off-screen
   document.addEventListener("visibilitychange", () => {
@@ -1216,6 +1261,7 @@
 
   // Boot
   updateShakeButton();
+  updateSoundButton();
   initStars();
   resetShip();
   lastTs = performance.now();

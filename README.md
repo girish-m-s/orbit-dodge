@@ -13,6 +13,7 @@ A small browser arcade game: pilot a ship in orbit around a planet, dodge drifti
 | `↓` | Pull inward |
 | `P` / `Esc` | Pause / resume |
 | `M` | Toggle screen shake (also on the pause menu) |
+| `N` | Toggle sound (also on the pause menu) |
 | Tap / click left or right half | Orbit that direction |
 | Hold one finger / mouse button | Boost outward |
 | Hold two fingers | Pull inward |
@@ -22,7 +23,7 @@ Skim past asteroids for **near-miss bonuses**. Chain near-misses and orb pickups
 ## Features
 
 - Canvas-rendered dark space aesthetic with a glowing planet, stars, and particle bursts
-- Synthesized sound effects (Web Audio, no asset files): near-miss chimes and orb blips that climb a musical scale as your combo grows, shield cues, a crash rumble, and a new-best fanfare
+- Synthesized sound effects (Web Audio, no asset files): near-miss chimes and orb blips that climb a musical scale as your combo grows, shield cues, a crash rumble, and a new-best fanfare — mute with `N` or the pause menu (remembered between visits)
 - Glowing ship engine trail (warms up when boosting) and screen shake on near misses / crashes
 - Asteroid shatter shards when rocks hit the planet or leave the playfield
 - Survival-time scoring plus collectible bonus orbs

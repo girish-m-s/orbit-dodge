@@ -247,6 +247,13 @@ html, body {
   box-shadow: none;
 }
 
+.toggles {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
 .btn-ghost:hover {
   box-shadow: 0 0 14px rgba(77, 232, 255, 0.4);
 }

@@ -29,7 +29,7 @@ Skim past asteroids for **near-miss bonuses**. Chain near-misses and orb pickups
 - Survival-time scoring plus collectible bonus orbs
 - Shield power-up orbs with a glowing bubble, HUD badge, and post-hit grace period
 - Near-miss scoring with floating popups, ship glow, and combo multiplier
-- Pulsing edge warnings show where each asteroid is about to fly in
+- Pulsing edge warnings show where each asteroid is about to fly in, paired with a soft stereo-panned ping so you can hear which side it's coming from (deeper ping = bigger rock)
 - Rising difficulty as asteroids spawn faster
 - Game over screen with score, high score, and near-miss count (high score persisted in `localStorage`)
 - Screen shake toggle that remembers your choice and starts off if your system prefers reduced motion

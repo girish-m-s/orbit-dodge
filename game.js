@@ -211,6 +211,12 @@
         noise({ dur: 0.35, vol: 0.22, from: 5000, to: 400 });
         tone({ freq: 720, to: 180, type: "square", dur: 0.3, vol: 0.06 });
       },
+      // Soft two-tick ping from the side a rock is entering; bigger rocks sound lower
+      incoming(pan, size) {
+        const f = 1300 - Math.min(1, Math.max(0, (size - 10) / 12)) * 600;
+        tone({ freq: f, to: f * 0.8, type: "sine", dur: 0.07, vol: 0.07, pan });
+        tone({ freq: f * 0.8, to: f * 0.65, type: "sine", dur: 0.09, vol: 0.055, delay: 0.09, pan });
+      },
       crash() {
         noise({ dur: 0.9, vol: 0.4, from: 1800, to: 60 });
         tone({ freq: 140, to: 38, type: "sine", dur: 0.8, vol: 0.35 });
@@ -310,6 +316,10 @@
     const dy = ty - y;
     const len = Math.hypot(dx, dy) || 1;
     const speed = rand(55, 110) + Math.min(score / 40, 70);
+    const r = rand(10, 22);
+
+    // Let players hear which side the warning is on, not just see it
+    Sfx.incoming(((x - CX) / CX) * 0.85, r);
 
     incoming.push({
       warn: WARN_TIME,
@@ -317,7 +327,7 @@
       y,
       vx: (dx / len) * speed,
       vy: (dy / len) * speed,
-      r: rand(10, 22),
+      r,
       rot: rand(0, Math.PI * 2),
       rotSp: rand(-2.5, 2.5),
       sides: 5 + Math.floor(Math.random() * 4),
